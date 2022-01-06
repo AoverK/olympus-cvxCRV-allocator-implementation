@@ -3,12 +3,9 @@ pragma solidity ^0.8.0;
 
 interface IAllocator {
     // Should have deposit/withdraw methods (interfaces aren't standardized)
-    /* function getReward() external;
-
-    function getReward(address _address, bool _bool) external;
- */
-    function getReward() external;
+     
+    function getRewards() external;
     function stakeAll() external;
+    function withdraw() external;
 
-    function stake(uint256 _amount) external;
 }

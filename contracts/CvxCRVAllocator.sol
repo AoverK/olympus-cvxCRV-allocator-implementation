@@ -14,19 +14,20 @@ import "./libraries/SafeERC20.sol";
 interface IcvxCRVRewardDistributorV1 {
 
     /**
-     * @notice Returns the earned rewards for an address
+     * @notice Returns the rewards for an address
      */
-    function earned(address _address) external view returns (uint256);
-
+    
+    function getReward() external view returns (bool);
     /**
      * @notice Returns the rewards for an address
      */
-    function getReward() external view returns (uint256);
-
+    
+    function stakeAll() external view returns (bool);
     /**
      * @notice Returns the rewards for an address
      */
-    /* function getReward(address _address, bool _bool) external view returns (uint256); */
+    
+    function withdraw() external view returns (bool);
 
     /**
      * @notice Returns the rewards for an address
@@ -71,35 +72,27 @@ contract  CvxCRVAllocator is Initializable, OwnableUpgradeable {
     }
 
     /* ======== POLICY FUNCTIONS ======== */
-
-    
+ 
     /**
      * @notice Transfer cvxCRV earned from staking
-     * @param _address address
-     * @param _bool bool
      */
-   /*  function getReward(address _address, bool _bool) external onlyOwner {
-        cvxCRVRewardDistributorV1.getReward(address(_address), _bool);
-    } */
-/**
-     * @notice Transfer cvxCRV earned from staking
-     */
-    function getReward() external {
-        return cvxCRVRewardDistributorV1.getReward();
-    }
-    
-    /**
-     * @notice Stake a set amount of cvxCRV
-     */
-    function stake(uint256 _amount) external onlyOwner {
-        cvxCRVRewardDistributorV1.stake(_amount);
+    function getRewards() external {
+        cvxCRVRewardDistributorV1.getReward();
+        
     }
 
     /**
      * @notice Stake all cvxCRV
      */
-    function stakeAll() external onlyOwner {
+    function stake() external {
          cvxCRVRewardDistributorV1.stakeAll();
+    }
+
+    /**
+     * @notice Stake all cvxCRV
+     */
+    function withdraw() external {
+         cvxCRVRewardDistributorV1.withdraw();
     }
 
     function setTreasury(address _treasury) external onlyOwner {
@@ -113,7 +106,4 @@ contract  CvxCRVAllocator is Initializable, OwnableUpgradeable {
         return cvxCRVRewardDistributorV1.balanceOf(address(this));
     }
 
-    function getRewardsEarned() public view returns (uint256) {
-        return cvxCRVRewardDistributorV1.earned(address(this));
-    }
 }
