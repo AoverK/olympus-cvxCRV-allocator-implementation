@@ -1,80 +1,40 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import "../interfaces/ITreasury.sol";
-import "../interfaces/IAllocator.sol";
-import "../interfaces/IERC20.sol";
-import "../libraries/SafeERC20.sol";
+import "./interfaces/ITreasury.sol";
+import "./interfaces/IAllocator.sol";
+import "./interfaces/IERC20.sol";
+import "./libraries/SafeERC20.sol";
 
-interface IveFXS is IERC20 {
-    /**
-     * @notice Deposit `_value` tokens for `msg.sender` and lock until `_unlock_time`
-     * @param _value Amount to deposit
-     * @param _unlock_time Epoch time when tokens unlock, rounded down to whole weeks
-     */
-    function create_lock(uint256 _value, uint256 _unlock_time) external;
+interface IcvxCRVRewardDistributorV1 {
 
     /**
-     * @notice Deposit `_value` additional tokens for `msg.sender` without modifying the unlock time
-     * @param _value Amount of tokens to deposit and add to the lock
-     */
-    function increase_amount(uint256 _value) external;
-
-    /**
-     * @notice Extend the unlock time for `msg.sender` to `_unlock_time`
-     * @param _unlock_time New epoch time for unlocking 
-     */
-    function increase_unlock_time(uint256 _unlock_time) external;
-
-    /**
-     * @notice Get timestamp when `_addr`'s lock finishes
-     * @param _addr wallet address
-     * @return Epoch time of the lock end
-     */
-     function locked__end(address _addr) external view returns (uint256);
-}
-
-interface IveFXSYieldDistributorV4 {
-    /**
-     * @notice transfers FXS earned by locking veFXS
-     * @return the amount of FXS transferred
-     */
-    function getYield() external returns (uint256);
-
-    /**
-     * @notice returns the pending rewards for an address
+     * @notice Returns the earned rewards for an address
      */
     function earned(address _address) external view returns (uint256);
 
-    /* BELOW USED ONLY IN TESTS */
+    /**
+     * @notice Returns the rewards for an address
+     */
+    function getReward() external view returns (uint256);
 
     /**
-     * @notice forces an update of a user's rewards
+     * @notice Returns the rewards for an address
      */
-    function checkpointOtherUser(address _address) external;
+    /* function getReward(address _address, bool _bool) external view returns (uint256); */
 
     /**
-     * @notice requests FXS rewards to pulled from msg.sender
+     * @notice Returns the rewards for an address
      */
-    function notifyRewardAmount(uint256 amount) external;
-
-    /**
-     * @notice allows an address to call notifyRewardAmount
-     */
-    function toggleRewardNotifier(address notifier_addr) external;
-
-    /**
-     * @notice returns the number of seconds until a reward is fully distributed
-     */
-    function yieldDuration() external returns(uint256);
+    function balanceOf(address _address) external view returns (uint256);
 }
 
-contract  FraxSharesAllocator is Initializable, OwnableUpgradeable {
+contract  CvxCRVAllocator is Initializable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
     using SafeMathUpgradeable for uint256;
 
@@ -82,22 +42,18 @@ contract  FraxSharesAllocator is Initializable, OwnableUpgradeable {
     /* !!!! UPGRADABLE CONTRACT !!!! */
     /* NEW STATE VARIABLES MUST BE APPENDED TO END */
 
-    uint256 constant private MAX_TIME = 4 * 365 * 86400 + 1;  // 4 years and 1 second
     ITreasury public treasury;
-    IERC20 public fxs; // $FXS token
-    IveFXS public veFXS; // $veFXS token
-    IveFXSYieldDistributorV4 public veFXSYieldDistributorV4;
+    IERC20 public cvxCRV; // $cvxCRV token
+    IcvxCRVRewardDistributorV1 public cvxCRVRewardDistributorV1;
 
-    // uint256 public totalValueDeployed; // FXS isn't a reserve token, so will always be 0
+    // uint256 public totalValueDeployed; // cvxCRV isn't a reserve token, so will always be 0
     uint256 public totalAmountDeployed;
-    uint256 public lockEnd; // tracks the expiry of veFXS to know if can be extended
 
     /* ======== INITIALIZER ======== */
     function initialize(
         address _treasury,
-        address _fxs,
-        address _veFXS,
-        address _veFXSYieldDistributorV4
+        address _cvxCRV,
+        address _cvxCRVRewardDistributorV1
     ) public initializer {
         __Context_init_unchained();
         __Ownable_init_unchained();
@@ -105,59 +61,45 @@ contract  FraxSharesAllocator is Initializable, OwnableUpgradeable {
         require(_treasury != address(0), "zero treasury address");
         treasury = ITreasury(_treasury);
 
-        require(_fxs != address(0), "zero FXS address");
-        fxs = IERC20(_fxs);
+        require(_cvxCRV != address(0), "zero cvxCRV address");
+        cvxCRV = IERC20(_cvxCRV);
 
-        require(_veFXS != address(0), "zero veFXS address");
-        veFXS = IveFXS(_veFXS);
-
-        require(_veFXSYieldDistributorV4 != address(0), "zero veFXSYieldDistributorV4 address");
-        veFXSYieldDistributorV4 = IveFXSYieldDistributorV4(_veFXSYieldDistributorV4);
+        require(_cvxCRVRewardDistributorV1 != address(0), "zero cvxCRVDistributorV1 address");
+        cvxCRVRewardDistributorV1 = IcvxCRVRewardDistributorV1(_cvxCRVRewardDistributorV1);
 
         totalAmountDeployed = 0;
     }
 
     /* ======== POLICY FUNCTIONS ======== */
 
+    
     /**
-     * @notice harvest FXS rewards, will relock all veFXS for the maximum amount of time (4 years)
+     * @notice Transfer cvxCRV earned from staking
+     * @param _address address
+     * @param _bool bool
      */
-    function harvest() external {
-        uint256 amount = veFXSYieldDistributorV4.getYield();
-
-        if (amount > 0) {
-            totalAmountDeployed = totalAmountDeployed.add(amount);
-
-            fxs.safeApprove(address(veFXS), amount);
-            veFXS.increase_amount(amount);
-            if (_canExtendLock()) {
-                lockEnd = block.timestamp + MAX_TIME;
-                veFXS.increase_unlock_time(block.timestamp + MAX_TIME);
-            }
-        }
+   /*  function getReward(address _address, bool _bool) external onlyOwner {
+        cvxCRVRewardDistributorV1.getReward(address(_address), _bool);
+    } */
+/**
+     * @notice Transfer cvxCRV earned from staking
+     */
+    function getReward() external {
+        return cvxCRVRewardDistributorV1.getReward();
     }
     
     /**
-     *  @notice withdraws FXS from treasury, locks as veFXS for maximum time (4 years).
-     *  @param _amount uint
+     * @notice Stake a set amount of cvxCRV
      */
-    function deposit(uint256 _amount) external onlyOwner {
-        treasury.manage(address(fxs), _amount);
+    function stake(uint256 _amount) external onlyOwner {
+        cvxCRVRewardDistributorV1.stake(_amount);
+    }
 
-        uint256 prevAmount = totalAmountDeployed;
-        totalAmountDeployed = totalAmountDeployed.add(_amount);
-
-        fxs.safeApprove(address(veFXS), _amount);
-        if (prevAmount == 0) {
-            lockEnd = block.timestamp + MAX_TIME;
-            veFXS.create_lock(_amount, lockEnd);
-        } else {
-            veFXS.increase_amount(_amount);
-            if (_canExtendLock()) {
-                lockEnd = block.timestamp + MAX_TIME;
-                veFXS.increase_unlock_time(block.timestamp + MAX_TIME);
-            }
-        }
+    /**
+     * @notice Stake all cvxCRV
+     */
+    function stakeAll() external onlyOwner {
+         cvxCRVRewardDistributorV1.stakeAll();
     }
 
     function setTreasury(address _treasury) external onlyOwner {
@@ -167,11 +109,11 @@ contract  FraxSharesAllocator is Initializable, OwnableUpgradeable {
 
     /* ======== VIEW FUNCTIONS ======== */
 
-    function getPendingRewards() public view returns (uint256) {
-        return veFXSYieldDistributorV4.earned(address(this));
+    function getBalance() public view returns (uint256) {
+        return cvxCRVRewardDistributorV1.balanceOf(address(this));
     }
 
-    function _canExtendLock() internal view returns (bool) {
-        return lockEnd < block.timestamp + MAX_TIME - 7 * 86400;
+    function getRewardsEarned() public view returns (uint256) {
+        return cvxCRVRewardDistributorV1.earned(address(this));
     }
 }

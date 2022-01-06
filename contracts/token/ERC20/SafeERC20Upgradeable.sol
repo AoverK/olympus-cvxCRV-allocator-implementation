@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "./IERC20Upgradeable.sol";
-import "../../math/SafeMathUpgradeable.sol";
+import "../../utils/math/SafeMathUpgradeable.sol";
 import "../../utils/AddressUpgradeable.sol";
 
 /**

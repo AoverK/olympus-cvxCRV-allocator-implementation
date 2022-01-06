@@ -21,7 +21,8 @@ abstract contract ContextUpgradeable is Initializable {
     function __Context_init_unchained() internal initializer {
     }
     function _msgSender() internal view virtual returns (address payable) {
-        return msg.sender;
+        // Since Solidity 0.8, msg.sender is not payable anymore. You need to cast it to payable first
+        return payable(msg.sender);
     }
 
     function _msgData() internal view virtual returns (bytes memory) {

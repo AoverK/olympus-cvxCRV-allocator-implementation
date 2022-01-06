@@ -14,7 +14,7 @@ const { ALCHEMY_API_URL_ROPSTEN, ALCHEMY_API_URL_RINKEBY, ALCHEMY_API_URL_MAINNE
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-    solidity: "0.8.0;",
+    solidity: "0.8.4",
     defaultNetwork: "rinkeby",
     networks: {
         hardhat: {},
