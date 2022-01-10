@@ -24,14 +24,12 @@ async function main() {
     const olympusTreasuryAddress = "0xBB0c4c8eeB9abB4C82122D26675B0DdCF99c6302";
     const cvxCRVAddress = "0xBB0c4c8eeB9abB4C82122D26675B0DdCF99c6302";
     const cvxCRVRewardDistributorAddress = "0xBB0c4c8eeB9abB4C82122D26675B0DdCF99c6302";
-    //console.log(bytecode);
 
     // We get the contract to deploy
     const cvxCRVAllocatorLogicContract = await ethers.getContractFactory(abi, bytecode, owner); // Proxy contract
     const cvxCRVLocicProxyContract = await upgrades.deployProxy(cvxCRVAllocatorLogicContract, [olympusTreasuryAddress, cvxCRVAddress, cvxCRVRewardDistributorAddress]);
     await cvxCRVLocicProxyContract.deployed();
     console.log("cvxCRV deployed to: ", cvxCRVLocicProxyContract.address)
-        //const cvxCRVProxyContract = await hre.ethers.getContractFactory("cvxCRV Allocator Proxy"); //Proxy contract
 
     // Upgrading
     //const BoxV2 = await ethers.getContractFactory("BoxV2");
